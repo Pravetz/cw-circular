@@ -1,3 +1,6 @@
+# ABOUT
+This repository contains software implementation of a neural network classification method for construction waste for the needs of the circular economy ("Метод нейромережевої класифікації відходів будівництва для потреб циркулярної економіки"). Below are the instructions for installation, configuration and using the software.
+
 # Dependencies
 Before using any of these applications, please install required dependencies from `requirements.txt` file using pip: 
 
