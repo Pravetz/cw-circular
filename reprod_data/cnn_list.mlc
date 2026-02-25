@@ -1,0 +1,13 @@
+type	cascade
+section	classes
+0	rn50_tarbrick/model.keras
+1	rn50_tarconcr/model.keras
+2	rn50_tarfoam/model.keras
+3	rn50_targw/model.keras
+4	rn50_targb/model.keras
+5	rn50_tarpipes/model.keras
+6	rn50_tarplast/model.keras
+7	rn50_tarstone/model.keras
+8	rn50_tartile/model.keras
+9	rn50_tarwood/model.keras
+endsection
