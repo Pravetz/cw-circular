@@ -10,9 +10,13 @@ LOCALIZATION_EN = {
 	"savefrags_btn_text" : "Save fragments...",
 	"delfromgal_btn_text" : "Delete from gallery",
 	"choose_image_text" : "Choose an image...",
+	"statistics_tab" : "Statistics",
+	"expert_tab" : "Recycling Expert",
 	"statistics_text" : "Image dimensions [IWIDTH]x[IHEIGHT].\n[DCOUNT] objects detected.\n[AVGC]% average confidence.\nObject counts:\n[OBJC]",
+	"expert_text" : "Can be recycled ([RECYCLED_PCNT]%):\n[RECYCLED]\nPossible recycling ([CONDITIONAL_PCNT]%):\n[CONDITIONAL]\nUtilize ([UTILIZED_PCNT]%):\n[UTILIZED]",
 	#	settings page
 	"yolo_path_text" : "YOLO path:",
+	"expert_path_text" : "Expert system rules path:",
 	"cnnc_path_text" : "Fragment classifier path:",
 	"class_path_text" : "Classes file path:",
 	"cls_colors_text" : "Class colors:",
@@ -35,9 +39,13 @@ LOCALIZATION_UK = {
 	"savefrags_btn_text" : "Зберегти фрагменти...",
 	"delfromgal_btn_text" : "Видалити з галереї",
 	"choose_image_text" : "Обрати фото...",
+	"statistics_tab" : "Статистика",
+	"expert_tab" : "ЕС вторинної переробки",
 	"statistics_text" : "Зображення [IWIDTH]x[IHEIGHT].\nОб\'єктів знайдено: [DCOUNT].\nСередня впевненість: [AVGC]%.\nЗнайдені об\'єкти:\n[OBJC]",
+	"expert_text" : "Придатні для переробки ([RECYCLED_PCNT]%):\n[RECYCLED]\nМожлива переробка ([CONDITIONAL_PCNT]%):\n[CONDITIONAL]\nНа утилізацію ([UTILIZED_PCNT]%):\n[UTILIZED]",
 	#	settings page
 	"yolo_path_text" : "Шлях до YOLO:",
+	"expert_path_text" : "Шлях до правил експертної системи:",
 	"cnnc_path_text" : "Шлях до класифікатора фрагментів:",
 	"class_path_text" : "Шлях до файла з класами:",
 	"cls_colors_text" : "Кольори класів:",
@@ -58,6 +66,7 @@ USER_SETTINGS = {
 	"YOLO_PATH" : "",
 	"CNNC_PATH" : "",
 	"CLASS_PATH" : "",
+	"EXPERT_PATH" : "",
 	"IOU_THRESHOLD" : 0.75,
 	"IMAGE_SIZE" : [224,224],
 	"GALLERY" : [],
@@ -69,6 +78,12 @@ STATISTICS_FMTK = {
 	"IHEIGHT" : None,		# image height, int or None
 	"DCOUNT" : None,		# detections count, int or None
 	"AVGC" : None			# average confidence, float or None
+}
+
+EXPERT_FMTK = {
+	"RECYCLED" : None,		# recycled objects, str or None
+	"UTILIZED" : None,		# utilized objects, str or None
+	"CONDITIONAL" : None,	# conditionally recycled, str or None
 }
 
 GALLERY_OBJECT = {
