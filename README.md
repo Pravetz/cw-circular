@@ -142,7 +142,7 @@ Label names list used in app is as follows:
 
 If description above seems confusing or hard to follow, you can run QT App with empty localization file and see, which label names appear where and have better understanding, what text needs to be there.
 
-statistics_text string also accepts following format specifiers:
+statistics_text string accepts following format specifiers:
 
 ```
   IWIDTH - image width
@@ -150,6 +150,17 @@ statistics_text string also accepts following format specifiers:
   DCOUNT - object detections count
   AVGC - average confidence
   OBJC - detected objects with counts
+```
+
+expert_text string accept following format specifiers:
+
+```
+	RECYCLED - expert guide to recycle objects, for which it is possible
+	CONDITIONAL - expert guide to recycle objects, which can either be recycled or utilized, depending on their state
+	UTILIZED - expert guide to utilize objects
+	RECYCLED_PCNT - percentage of objects for recycling
+	CONDITIONAL_PCNT - percentage of objects for possible recycling
+	UTILIZED_PCNT - percentage of objects for utilization 
 ```
 
 Format specifiers are written in brackets: 
