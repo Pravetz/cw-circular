@@ -84,6 +84,9 @@ EXPERT_FMTK = {
 	"RECYCLED" : None,		# recycled objects, str or None
 	"UTILIZED" : None,		# utilized objects, str or None
 	"CONDITIONAL" : None,	# conditionally recycled, str or None
+	"RECYCLED_PCNT" : None,	# recycled percentage, float or None
+	"UTILIZED_PCNT" : None,	# conditionally recycled percentage, float or None
+	"CONDITIONAL_PCNT" : None,	# utilized percentage, float or None
 }
 
 GALLERY_OBJECT = {
