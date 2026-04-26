@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (
-	QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QLabel,
+	QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QLabel, QTabWidget,
 	QStackedWidget, QFileDialog, QTextEdit, QScrollArea, QSlider, QStyle, QListWidget, QListWidgetItem, QColorDialog
 )
 from PySide6.QtCore import Qt, QSize, QPointF, QRectF
@@ -24,6 +24,7 @@ import app_info
 import app_defaults
 import app_inference
 import app_utils
+from app_expert import Expert
 from app_models import ModelInterface
 
 def cv2_to_pixmap(cv_image):
@@ -97,6 +98,9 @@ def load_class_file(path):
 	with open(path, 'r') as clsf:
 		return {int(k) : v for k, v in json.load(clsf).items()}
 
+def determine_loc_filename(path):
+	return os.path.basename(path)
+
 class ImageLabel(QLabel):
 	def __init__(self, label_text, parent_window, enable_file_io, parent=None):
 		super().__init__(parent)
@@ -163,6 +167,8 @@ class MainWindow(QWidget):
 		self.loclang = ""
 		self.localization = {}
 		
+		self.expert = None if not self.userdata_dict["EXPERT_PATH"] else Expert(self.userdata_dict["EXPERT_PATH"], determine_loc_filename(self.userdata_dict["LOC_PATH"]))
+		
 		self.shared_data = {
 			"image_path" : str()
 		}
@@ -170,6 +176,7 @@ class MainWindow(QWidget):
 		self.frag_class = None
 		self.prediction = [copy.deepcopy(app_defaults.GALLERY_OBJECT)]
 		self.label_mapping = {}
+		self.inverse_label_mapping = {}
 		
 		self.gallery_object_id = [None]
 		self.img_scale_factor = [1.0]
@@ -179,7 +186,7 @@ class MainWindow(QWidget):
 		self.class_color_click_signal_not_connected = True
 		
 		try:
-			self.loclang = os.path.basename(userdata_dict["LOC_PATH"])
+			self.loclang = determine_loc_filename(os.path.basename(userdata_dict["LOC_PATH"]))
 			self.loclang = self.loclang[: self.loclang.rfind('.')]
 			self.localization = load_localization(userdata_dict["LOC_PATH"])
 		except Exception:
@@ -193,7 +200,8 @@ class MainWindow(QWidget):
 		if self.userdata_dict["CLASS_PATH"]:
 			class_data = load_class_file(self.userdata_dict["CLASS_PATH"])
 			self.label_mapping = { k: v.get(self.loclang, v.get("default", f"Class_{k}")) for k, v in class_data.items() }
-			self.userdata_dict["CLASS_COLORS"] = { self.label_mapping[k] : [randint(0,255),randint(0,255),randint(0,255)] if self.label_mapping[k] not in self.userdata_dict["CLASS_COLORS"] or override_colors else self.userdata_dict["CLASS_COLORS"][self.label_mapping[k]] for k, _ in class_data.items() }
+			self.inverse_label_mapping = { v : str(k) for k, v in self.label_mapping.items() }
+			self.userdata_dict["CLASS_COLORS"] = { str(k) : [randint(0,255),randint(0,255),randint(0,255)] if str(k) not in self.userdata_dict["CLASS_COLORS"] or override_colors else self.userdata_dict["CLASS_COLORS"][str(k)] for k, _ in class_data.items() }
 			if update_color_list:
 				self.populate_class_color_list()
 	
@@ -270,7 +278,26 @@ class MainWindow(QWidget):
 				subs_table["OBJC"] = app_utils.make_object_count_string(object_counts)
 		loc_text = app_utils.format_text(loc_text, subs_table)
 		target.setText(loc_text)
-
+	
+	def set_expert_text(self, target):
+		if self.expert is None:
+			return
+		
+		loc_text = set_localized_text(self.localization, "expert_text")
+		if loc_text == "expert_text":
+			target.setText(loc_text)
+			return
+		expert_recommendations, percentages = self.expert.recommend(self.prediction[-1])
+		subs_table = app_defaults.EXPERT_FMTK
+		subs_table["RECYCLED"] = app_utils.merge_guides(expert_recommendations["recycle"], self.label_mapping)
+		subs_table["CONDITIONAL"] = app_utils.merge_guides(expert_recommendations["conditional"], self.label_mapping)
+		subs_table["UTILIZED"] = app_utils.merge_guides(expert_recommendations["utilize"], self.label_mapping)
+		subs_table["RECYCLED_PCNT"] = percentages["recycle"]
+		subs_table["CONDITIONAL_PCNT"] = percentages["conditional"]
+		subs_table["UTILIZED_PCNT"] = percentages["utilize"]
+		loc_text = app_utils.format_text(loc_text, subs_table)
+		target.setText(loc_text)
+	
 	def show_recog_page(self):
 		if self.is_in_gallery_view:
 			self.is_in_gallery_view = False
@@ -322,25 +349,34 @@ class MainWindow(QWidget):
 		self.save_fragments_button.clicked.connect(self.on_save_fragments_button_click)
 		self.delete_gallery_button.clicked.connect(self.delete_gallery_button_click)
 	
-		scroll_area = QScrollArea()
+		info_scroll_area = QScrollArea()
+		expert_scroll_area = QScrollArea()
 		self.info_textbox = QTextEdit()
 		self.info_textbox.setReadOnly(True)
-		scroll_area.setWidgetResizable(True)
-		scroll_area.setWidget(self.info_textbox)
+		self.expert_textbox = QTextEdit()
+		self.expert_textbox.setReadOnly(True)
+		info_scroll_area.setWidgetResizable(True)
+		info_scroll_area.setWidget(self.info_textbox)
+		expert_scroll_area.setWidgetResizable(True)
+		expert_scroll_area.setWidget(self.expert_textbox)
+	
+		self.info_tabs_area = QTabWidget()
+		self.info_tabs_area.addTab(info_scroll_area, set_localized_text(self.localization, "statistics_tab"))
+		self.info_tabs_area.addTab(expert_scroll_area, set_localized_text(self.localization, "expert_tab"))
 	
 		left_panel.addWidget(self.find_objects_button)
 		left_panel.addWidget(self.classify_button)
 		left_panel.addWidget(self.save_fragments_button)
 		left_panel.addWidget(self.delete_gallery_button)
-		left_panel.addWidget(scroll_area, 1)
+		left_panel.addWidget(self.info_tabs_area, 1)
 	
 		image_scroll_area = QScrollArea()
 		image_scroll_area.setWidgetResizable(True)
 		self.image_label = ImageLabel(set_localized_text(self.localization, "choose_image_text"), self, True)
 		image_scroll_area.setWidget(self.image_label);
 	
-		recognition_layout.addLayout(left_panel)
-		recognition_layout.addWidget(image_scroll_area, 1)
+		recognition_layout.addLayout(left_panel, 1)
+		recognition_layout.addWidget(image_scroll_area, 3)
 	
 		recognition_page = QWidget()
 		recognition_page.setLayout(recognition_layout)
@@ -375,6 +411,7 @@ class MainWindow(QWidget):
 		self.prediction[-1]["image"] = app_utils.load_cv2_image_rgb(image_path)
 		self.prediction[-1]["predictions"] = app_utils.deserialize_pickle(preds_path)
 		self.set_statistics_text(self.gvp_info_textbox)
+		self.set_expert_text(self.gve_textbox)
 		self.gvp_image_label.update_image()
 		self.stacked_widget.setCurrentWidget(self.gallery_view_page)
 	
@@ -406,24 +443,33 @@ class MainWindow(QWidget):
 		self.gvp_delete_gallery_button.clicked.connect(self.delete_gallery_button_click)
 	
 		left_panel = QVBoxLayout()
-	
-		scroll_area = QScrollArea()
+		
+		info_scroll_area = QScrollArea()
+		expert_scroll_area = QScrollArea()
 		self.gvp_info_textbox = QTextEdit()
 		self.gvp_info_textbox.setReadOnly(True)
-		scroll_area.setWidgetResizable(True)
-		scroll_area.setWidget(self.gvp_info_textbox)
+		self.gve_textbox = QTextEdit()
+		self.gve_textbox.setReadOnly(True)
+		info_scroll_area.setWidgetResizable(True)
+		info_scroll_area.setWidget(self.gvp_info_textbox)
+		expert_scroll_area.setWidgetResizable(True)
+		expert_scroll_area.setWidget(self.gve_textbox)
+	
+		self.gvinfo_tabs_area = QTabWidget()
+		self.gvinfo_tabs_area.addTab(info_scroll_area, set_localized_text(self.localization, "statistics_tab"))
+		self.gvinfo_tabs_area.addTab(expert_scroll_area, set_localized_text(self.localization, "expert_tab"))
 		
 		left_panel.addWidget(self.gvp_save_fragments_button)
 		left_panel.addWidget(self.gvp_delete_gallery_button)
-		left_panel.addWidget(scroll_area, 1)
+		left_panel.addWidget(self.gvinfo_tabs_area, 1)
 		
 		image_scroll_area = QScrollArea()
 		image_scroll_area.setWidgetResizable(True)
 		self.gvp_image_label = ImageLabel("", self, False)
 		image_scroll_area.setWidget(self.gvp_image_label)
 	
-		gallery_view_layout.addLayout(left_panel)
-		gallery_view_layout.addWidget(image_scroll_area, 1)
+		gallery_view_layout.addLayout(left_panel, 1)
+		gallery_view_layout.addWidget(image_scroll_area, 3)
 	
 		gallery_view_page = QWidget()
 		gallery_view_page.setLayout(gallery_view_layout)
@@ -444,6 +490,17 @@ class MainWindow(QWidget):
 		yolo_path_layout = QHBoxLayout()
 		yolo_path_layout.addWidget(self.yolo_path_field)
 		yolo_path_layout.addWidget(self.yolo_path_button)
+	
+		self.expert_path_label = QLabel(set_localized_text(self.localization, "expert_path_text"))
+		self.expert_path_field = QTextEdit(self.userdata_dict["EXPERT_PATH"])
+		self.expert_path_field.setReadOnly(True)
+		self.expert_path_button = QPushButton()
+		self.expert_path_button.setIcon(self.style().standardIcon(QStyle.SP_DirOpenIcon))
+		self.expert_path_button.clicked.connect(self.on_expert_path_button_click)
+	
+		expert_path_layout = QHBoxLayout()
+		expert_path_layout.addWidget(self.expert_path_field)
+		expert_path_layout.addWidget(self.expert_path_button)
 	
 		self.cnnc_path_label = QLabel(set_localized_text(self.localization, "cnnc_path_text"))
 		self.cnnc_path_field = QTextEdit(self.userdata_dict["CNNC_PATH"])
@@ -509,6 +566,8 @@ class MainWindow(QWidget):
 	
 		settings_layout.addWidget(self.yolo_path_label)
 		settings_layout.addLayout(yolo_path_layout)
+		settings_layout.addWidget(self.expert_path_label)
+		settings_layout.addLayout(expert_path_layout)
 		settings_layout.addWidget(self.cnnc_path_label)
 		settings_layout.addLayout(cnnc_path_layout)
 		settings_layout.addWidget(self.class_path_label)
@@ -545,7 +604,7 @@ class MainWindow(QWidget):
 		self.class_color_list.clear()
 		
 		for class_name, color in self.userdata_dict["CLASS_COLORS"].items():
-			item = QListWidgetItem(class_name)
+			item = QListWidgetItem(self.label_mapping[int(class_name)])
 			item.setBackground(QColor(*color))
 			self.class_color_list.addItem(item)
 		
@@ -555,12 +614,12 @@ class MainWindow(QWidget):
 	
 	def on_class_color_item_clicked(self, item):
 		class_name = item.text()
-		current_color = QColor(*self.userdata_dict["CLASS_COLORS"][class_name])
+		current_color = QColor(*self.userdata_dict["CLASS_COLORS"][self.inverse_label_mapping[class_name]])
 		
 		color = QColorDialog.getColor(current_color, self.class_color_list, f"Select Color for {class_name}")
 		if color.isValid():
 			new_rgb = [color.red(), color.green(), color.blue()]
-			self.userdata_dict["CLASS_COLORS"][class_name] = new_rgb
+			self.userdata_dict["CLASS_COLORS"][self.inverse_label_mapping[class_name]] = new_rgb
 			item.setBackground(color)
 	
 	def on_imsize_text_changed(self):
@@ -621,6 +680,11 @@ class MainWindow(QWidget):
 		if self.userdata_dict["YOLO_PATH"]:
 			self.yolo_model = YOLO(self.userdata_dict["YOLO_PATH"])
 	
+	def on_expert_path_button_click(self):
+		self.open_file_dialog_cfg(self.yolo_path_field, "YOLO Path", ["JSON (*.json)"], "EXPERT_PATH")
+		if self.userdata_dict["EXPERT_PATH"]:
+			self.expert = Expert(self.userdata_dict["EXPERT_PATH"], determine_loc_filename(self.userdata_dict["LOC_PATH"]))
+	
 	def on_cnnc_path_button_click(self):
 		self.open_file_dialog_cfg(self.cnnc_path_field, "CNN Classifiers Path", ["Config (*.mlc)"], "CNNC_PATH")
 		if self.userdata_dict["CNNC_PATH"]:
@@ -646,6 +710,7 @@ class MainWindow(QWidget):
 			self.userdata_dict["GALLERY"].append(app_utils.serializable_gallery_object(self.gallery_object_id[-1]))
 		self.image_label.update_image()
 		self.set_statistics_text(self.info_textbox)
+		self.set_expert_text(self.expert_textbox)
 		self.saved_gobj[-1] = False
 	
 	def on_classify_button_click(self):
@@ -665,11 +730,12 @@ class MainWindow(QWidget):
 			self.userdata_dict["GALLERY"].append(app_utils.serializable_gallery_object(self.gallery_object_id[-1]))
 		self.image_label.update_image()
 		self.set_statistics_text(self.info_textbox)
+		self.set_expert_text(self.expert_textbox)
 	
 	def postproc_predictions_on_image(self, prediction, no_labels=True):
 		prediction["proc_image"] = prediction["image"].copy()
 		for box, cls, conf in prediction["predictions"]:
-			color = tuple(self.userdata_dict["CLASS_COLORS"][self.label_mapping[cls]])
+			color = tuple(self.userdata_dict["CLASS_COLORS"][str(cls)])
 			cv2.rectangle(prediction["proc_image"], (box[0], box[1]), (box[2], box[3]), color, 2)
 		
 			if not no_labels:
@@ -713,12 +779,17 @@ class MainWindow(QWidget):
 		self.info_textbox.setStyleSheet(f"font-size: {font_scale}px;")
 		self.gvp_info_textbox.setStyleSheet(f"font-size: {font_scale}px;")
 		self.yolo_path_button.setStyleSheet(f"font-size: {font_scale}px; height: {button_height}px; width: {button_height}px;")
+		self.expert_path_button.setStyleSheet(f"font-size: {font_scale}px; height: {button_height}px; width: {button_height}px;")
 		self.cnnc_path_button.setStyleSheet(f"font-size: {font_scale}px; height: {button_height}px; width: {button_height}px;")
 		self.class_path_button.setStyleSheet(f"font-size: {font_scale}px; height: {button_height}px; width: {button_height}px;")
+		self.info_tabs_area.setStyleSheet(f"font-size: {font_scale}px; height: {button_height}px; width: {button_height}px;")
+		self.gvinfo_tabs_area.setStyleSheet(f"font-size: {font_scale}px; height: {button_height}px; width: {button_height}px;")
 		self.lang_path_button.setStyleSheet(f"font-size: {font_scale}px; height: {button_height}px; width: {button_height}px;")
 	
 		self.yolo_path_label.setStyleSheet(f"font-size: {font_scale}px;")
 		self.yolo_path_field.setStyleSheet(f"font-size: {font_scale}px;")
+		self.expert_path_label.setStyleSheet(f"font-size: {font_scale}px;")
+		self.expert_path_field.setStyleSheet(f"font-size: {font_scale}px;")
 		self.cnnc_path_label.setStyleSheet(f"font-size: {font_scale}px;")
 		self.cnnc_path_field.setStyleSheet(f"font-size: {font_scale}px;")
 		self.class_path_label.setStyleSheet(f"font-size: {font_scale}px;")
