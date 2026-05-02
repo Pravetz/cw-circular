@@ -101,6 +101,12 @@ def load_class_file(path):
 def determine_loc_filename(path):
 	return os.path.basename(path)
 
+def get_contrasting_text_color(rgb):
+	r, g, b = rgb
+	# Perceived luminance (ITU-R BT.601)
+	luminance = 0.299 * r + 0.587 * g + 0.114 * b
+	return QColor(0, 0, 0) if luminance > 186 else QColor(255, 255, 255)
+
 class ImageLabel(QLabel):
 	def __init__(self, label_text, parent_window, enable_file_io, parent=None):
 		super().__init__(parent)
@@ -606,6 +612,10 @@ class MainWindow(QWidget):
 		for class_name, color in self.userdata_dict["CLASS_COLORS"].items():
 			item = QListWidgetItem(self.label_mapping[int(class_name)])
 			item.setBackground(QColor(*color))
+			
+			text_color = get_contrasting_text_color(color)
+			item.setForeground(text_color)
+			
 			self.class_color_list.addItem(item)
 		
 		if self.class_color_click_signal_not_connected:
