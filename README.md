@@ -48,6 +48,42 @@ QT App needs a list of classes to perform classifications, this can be defined i
 Each entry is a (`id`, `dict`) pair, where `id` is a numerical string, representing class label and `dict` contains localization data, used to describe class label when post-processing a classified image, contains (`lang`, `text`) pairs, where `lang` is a localization identifier and `text` is a string to be displayed with `lang` localization on. 
 "default" localization name is used, when QT App's turned localization name was not found in `dict`.
 
+# QT App Recycling Expert
+QT App supports the enabling of "Recycling Expert", an Expert System to give recommendations on how to recycle detected objects on an image. This ES is defined in a separate JSON file, by default the application doesn't automatically define it, as it has no knowledge of user's dataset, and even if it does, it has no idea on what classes the user expects to be recycled or utilized.
+
+To define an expert system for recycling, one needs to create a new JSON file and fill it in similar fashion to this example:
+```json
+{
+  "0" : {
+   "type" : "recycle"
+  }
+  "1" : {
+   "type" : "conditional"
+  }
+  "2" : {
+    "type" : "utilize"
+  }
+}
+```
+
+Each entry is a (`id`, `dict`) pair, where `id` is a numerical string, representing class label and `dict` contains classification data for expert system (for now it only needs `type` of group, but there can be additional metadata in the future). Recycling Expert divides objects into three groups: `recycle`, `conditional` and `utilize`.
+The guide on allocating groups is the following:
+- One should put classes that can always be recycled to `recycle` group
+- If a class can only be recycled when certain conditions are met, then it must be put into `conditional` group
+- Classes of objects that can not be recycled are put into `utilize` group
+After creating an expert configuration file, one also needs to provide localizations for the app, which should be put into `appdata/localization/expert`.
+
+Localization is created just like it is done for the rest of the application, localizer should name the file with locale name(e.g. `en.json` or `uk.json`) and fill it as in this example:
+```json
+{
+	"0": "This class can be recycled by following these steps: ...",
+	"1": "This class can only be recycled if these conditions are met: ...",
+	"2": "This class must be utilized ..."
+}
+```
+
+With this information, QT application will have all the sufficient information to start recommending recycling strategies for found objects.
+
 # QT App Fragment Classifiers
 Application uses a simple, home-grown MLC(Model Loader Config) language to specify all necessary data for it to load classifiers.
 
